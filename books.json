@@ -1,15 +1,15 @@
 {
   "site": {
-    "title": "Ann Hsieh — Publications",
-    "subtitle": "作品集與出版品 · 點選封面即可翻閱",
+    "title": "Portfolios",
+    "subtitle": "Portfolios and Publications · by Hsieh Tsai-En",
     "github": { "owner": "", "repo": "", "branch": "main" }
   },
   "books": [
     {
-      "file": "sample.pdf",
-      "title": "範例作品集",
-      "subtitle": "The Modernity of Tradition — 示範用 PDF",
-      "date": "2026"
+      "file": "NEW YORK_JULY 2026.pdf",
+      "title": "NEW YORK_2026",
+      "subtitle": "New York New Detritus",
+      "date": "JULY, 2026"
     }
   ]
 }
