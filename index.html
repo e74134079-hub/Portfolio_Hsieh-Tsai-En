@@ -3,12 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bookshelf</title>
+<title>書架</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@200;400;500;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://use.typekit.net/pld6eni.css">
 <style>
   :root {
+    --f-title: "poppins", "Noto Sans TC", sans-serif; --w-title: 800;
+    --w-sub: 600; --w-meta: 200;
     --bg: #f3f0ea; --ink: #1f1d1a; --muted: #7a746b; --line: #d9d3c8;
     --card: #fbfaf7; --shadow: 0 1px 2px rgba(40,30,20,.12), 0 10px 28px rgba(40,30,20,.14);
     --shadow-hi: 0 2px 4px rgba(40,30,20,.14), 0 22px 44px rgba(40,30,20,.22);
@@ -22,8 +25,8 @@
   html, body { margin: 0; }
   body { background: var(--bg); color: var(--ink); font-family: "Noto Sans TC", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
   header { max-width: 1180px; margin: 0 auto; padding: 64px 24px 28px; border-bottom: 1px solid var(--line); }
-  h1 { font-family: "Noto Serif TC", serif; font-weight: 600; font-size: clamp(28px, 4.2vw, 44px); letter-spacing: .01em; margin: 0 0 10px; }
-  header p { margin: 0; color: var(--muted); font-size: 15px; }
+  h1 { font-family: var(--f-title); font-weight: var(--w-title); font-size: clamp(28px, 4.2vw, 44px); letter-spacing: .01em; margin: 0 0 10px; }
+  header p { margin: 0; color: var(--muted); font-size: 15px; font-family: var(--f-title); font-weight: var(--w-sub); }
   main { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 48px 36px; }
   .book { text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 14px; }
@@ -42,11 +45,13 @@
   .book:hover .cover, .book:focus-visible .cover { transform: translateY(-6px) rotate(-.4deg); box-shadow: var(--shadow-hi); }
   .book:focus-visible { outline: none; }
   .book:focus-visible .meta h2 { text-decoration: underline; }
-  .meta h2 { font-family: "Noto Serif TC", serif; font-weight: 600; font-size: 17px; line-height: 1.35; margin: 0 0 4px; }
+  .meta h2 { font-family: var(--f-title); font-weight: var(--w-title); font-size: 17px; line-height: 1.35; margin: 0 0 4px; }
   .meta p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .meta .sub { font-family: var(--f-title); font-weight: var(--w-sub); }
+  .meta p:last-child { font-family: var(--f-title); font-weight: var(--w-meta); }
   .meta .pages { font-variant-numeric: tabular-nums; }
   .empty { color: var(--muted); padding: 60px 0; text-align: center; line-height: 1.8; }
-  footer { max-width: 1180px; margin: 0 auto; padding: 0 24px 40px; color: var(--muted); font-size: 12px; }
+  footer { max-width: 1180px; margin: 0 auto; padding: 0 24px 40px; color: var(--muted); font-size: 12px; font-family: var(--f-title); font-weight: var(--w-meta); }
   @media (max-width: 520px) {
     header { padding: 40px 16px 20px; } main { padding: 28px 16px 60px; } footer { padding: 0 16px 32px; }
     .grid { grid-template-columns: repeat(2, 1fr); gap: 32px 18px; }

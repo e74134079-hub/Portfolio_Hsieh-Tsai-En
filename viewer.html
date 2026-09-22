@@ -6,11 +6,13 @@
 <title>閱讀器</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600&family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@200;400;500;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://use.typekit.net/pld6eni.css">
 <style>
   :root {
     --bg: #1c1b19; --bg2: #262522; --ink: #efebe4; --muted: #a39d93; --line: rgba(255,255,255,.1);
     --btn: rgba(255,255,255,.06); --btn-hi: rgba(255,255,255,.14); --accent: #e7c98f;
+    --f-title: "poppins", "Noto Sans TC", sans-serif; --w-title: 800; --w-meta: 200;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
@@ -26,7 +28,7 @@
   svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
   .topbar { flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); border-bottom: 1px solid var(--line); }
-  .title { flex: 1; min-width: 0; font-family: "Noto Serif TC", serif; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .title { flex: 1; min-width: 0; font-family: var(--f-title); font-weight: var(--w-title); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
   .tools { display: flex; gap: 6px; }
 
   .stage { flex: 1; position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; }
@@ -50,7 +52,7 @@
 
   .bottombar { flex: none; display: flex; align-items: center; gap: 14px; padding: 10px 20px; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
   #slider { flex: 1; accent-color: var(--accent); height: 20px; }
-  #label { min-width: 88px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
+  #label { min-width: 88px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); font-family: var(--f-title); font-weight: var(--w-meta); }
 
   .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 20; background: var(--bg); color: var(--muted); font-size: 14px; text-align: center; padding: 24px; line-height: 1.7; }
   .bar { width: 220px; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
