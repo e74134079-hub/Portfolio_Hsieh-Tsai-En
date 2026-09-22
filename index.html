@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>書架</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f3f0ea; --ink: #1f1d1a; --muted: #7a746b; --line: #d9d3c8;
+    --card: #fbfaf7; --shadow: 0 1px 2px rgba(40,30,20,.12), 0 10px 28px rgba(40,30,20,.14);
+    --shadow-hi: 0 2px 4px rgba(40,30,20,.14), 0 22px 44px rgba(40,30,20,.22);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161513; --ink: #ece8e1; --muted: #9a948a; --line: #2f2c28; --card: #211f1c;
+      --shadow: 0 1px 2px rgba(0,0,0,.5), 0 10px 28px rgba(0,0,0,.45);
+      --shadow-hi: 0 2px 4px rgba(0,0,0,.5), 0 22px 44px rgba(0,0,0,.6); }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: "Noto Sans TC", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  header { max-width: 1180px; margin: 0 auto; padding: 64px 24px 28px; border-bottom: 1px solid var(--line); }
+  h1 { font-family: "Noto Serif TC", serif; font-weight: 600; font-size: clamp(28px, 4.2vw, 44px); letter-spacing: .01em; margin: 0 0 10px; }
+  header p { margin: 0; color: var(--muted); font-size: 15px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 48px 36px; }
+  .book { text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 14px; }
+  .cover-box { aspect-ratio: 3 / 4; display: flex; align-items: flex-end; justify-content: center; }
+  .cover { position: relative; max-width: 100%; max-height: 100%; background: var(--card); box-shadow: var(--shadow);
+    border-radius: 2px 4px 4px 2px; overflow: hidden; transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s; transform-origin: 50% 100%; }
+  .cover canvas, .cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .cover.tall { height: 100%; } .cover.wide { width: 100%; }
+  .cover::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(90deg, rgba(0,0,0,.18) 0, rgba(255,255,255,.18) 3px, rgba(0,0,0,.06) 7px, transparent 14px); }
+  .cover.placeholder { width: 100%; aspect-ratio: 3/4; }
+  .cover.placeholder::before { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(100deg, transparent 30%, rgba(127,127,127,.12) 50%, transparent 70%) var(--card);
+    background-size: 200% 100%; animation: shimmer 1.4s infinite linear; }
+  @keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+  .book:hover .cover, .book:focus-visible .cover { transform: translateY(-6px) rotate(-.4deg); box-shadow: var(--shadow-hi); }
+  .book:focus-visible { outline: none; }
+  .book:focus-visible .meta h2 { text-decoration: underline; }
+  .meta h2 { font-family: "Noto Serif TC", serif; font-weight: 600; font-size: 17px; line-height: 1.35; margin: 0 0 4px; }
+  .meta p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .meta .pages { font-variant-numeric: tabular-nums; }
+  .empty { color: var(--muted); padding: 60px 0; text-align: center; line-height: 1.8; }
+  footer { max-width: 1180px; margin: 0 auto; padding: 0 24px 40px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 520px) {
+    header { padding: 40px 16px 20px; } main { padding: 28px 16px 60px; } footer { padding: 0 16px 32px; }
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 32px 18px; }
+    .meta h2 { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="site-title">書架</h1>
+  <p id="site-sub">點選封面即可翻閱</p>
+</header>
+<main>
+  <div class="grid" id="grid"></div>
+</main>
+<footer id="foot"></footer>
+
+<script src="lib/pdfjs/pdf.min.js"></script>
+<script src="lib/catalog.js"></script>
+<script>
+(async function () {
+  const grid = document.getElementById('grid');
+  const { site, books } = await Catalog.loadCatalog();
+  if (site.title) { document.getElementById('site-title').textContent = site.title; document.title = site.title; }
+  if (site.subtitle) document.getElementById('site-sub').textContent = site.subtitle;
+  document.getElementById('foot').textContent = books.length ? `共 ${books.length} 本` : '';
+
+  if (!books.length) {
+    grid.outerHTML = '<div class="empty">書架上還沒有書。<br>把 PDF 上傳到 <code>pdfs/</code> 資料夾即可出現在這裡。</div>';
+    return;
+  }
+
+  const queue = [];
+  let active = 0;
+  const MAX = 2;
+  function pump() {
+    while (active < MAX && queue.length) {
+      const job = queue.shift(); active++;
+      job().finally(() => { active--; pump(); });
+    }
+  }
+
+  function setShape(el, ratio) {
+    el.style.aspectRatio = String(ratio);
+    el.classList.add(ratio <= 0.75 ? 'tall' : 'wide');
+  }
+
+  async function renderCover(book, coverEl, pagesEl) {
+    try {
+      if (book.cover) {
+        const img = new Image(); img.alt = ''; img.src = book.cover;
+        await img.decode(); setShape(coverEl, img.naturalWidth / img.naturalHeight); coverEl.replaceChildren(img); coverEl.classList.remove('placeholder');
+      }
+      const doc = await pdfjsLib.getDocument({ url: book.url, ...PDF_OPTS }).promise;
+      pagesEl.textContent = `${doc.numPages} 頁`;
+      if (book.cover) { doc.destroy(); return; }
+      const page = await doc.getPage(1);
+      const base = page.getViewport({ scale: 1 });
+      const box = coverEl.parentElement.getBoundingClientRect();
+      const targetW = Math.min(900, Math.max(box.width, box.height * base.width / base.height) * (window.devicePixelRatio || 1) * 1.2);
+      const vp = page.getViewport({ scale: targetW / base.width });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.floor(vp.width); canvas.height = Math.floor(vp.height);
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      setShape(coverEl, base.width / base.height);
+      coverEl.replaceChildren(canvas); coverEl.classList.remove('placeholder');
+      doc.destroy();
+    } catch (e) {
+      console.error(e);
+      coverEl.classList.remove('placeholder');
+      coverEl.style.cssText = 'width:100%;aspect-ratio:3/4;display:grid;place-items:center;color:var(--muted);font-size:13px';
+      coverEl.textContent = '無法載入';
+    }
+  }
+
+  const io = new IntersectionObserver(entries => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      io.unobserve(en.target);
+      const b = en.target._book;
+      queue.push(() => renderCover(b, en.target.querySelector('.cover'), en.target.querySelector('.pages')));
+      pump();
+    }
+  }, { rootMargin: '200px' });
+
+  for (const b of books) {
+    const a = document.createElement('a');
+    a.className = 'book';
+    a.href = 'viewer.html?book=' + encodeURIComponent(b.file);
+    a.innerHTML = `<div class="cover-box"><div class="cover placeholder"></div></div>
+      <div class="meta"><h2></h2><p class="sub"></p><p><span class="date"></span><span class="pages"></span></p></div>`;
+    a.querySelector('h2').textContent = b.title;
+    const sub = a.querySelector('.sub');
+    if (b.subtitle) sub.textContent = b.subtitle; else sub.remove();
+    if (b.date) a.querySelector('.date').textContent = b.date + ' · ';
+    a._book = b;
+    grid.appendChild(a);
+    io.observe(a);
+  }
+})();
+</script>
+</body>
+</html>

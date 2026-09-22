@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>閱讀器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600&family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1c1b19; --bg2: #262522; --ink: #efebe4; --muted: #a39d93; --line: rgba(255,255,255,.1);
+    --btn: rgba(255,255,255,.06); --btn-hi: rgba(255,255,255,.14); --accent: #e7c98f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { background: radial-gradient(ellipse at 50% 40%, var(--bg2), var(--bg) 70%) var(--bg); color: var(--ink);
+    font-family: "Noto Sans TC", system-ui, sans-serif; -webkit-font-smoothing: antialiased; display: flex; flex-direction: column;
+    height: 100dvh; user-select: none; -webkit-user-select: none; }
+  button, a.btn { font: inherit; color: inherit; background: var(--btn); border: 1px solid var(--line); border-radius: 8px;
+    height: 36px; min-width: 36px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    cursor: pointer; text-decoration: none; font-size: 13px; transition: background .15s; }
+  button:hover, a.btn:hover { background: var(--btn-hi); }
+  button:focus-visible, a.btn:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button[aria-pressed="false"] .on, button[aria-pressed="true"] .off { display: none; }
+  svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+  .topbar { flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); border-bottom: 1px solid var(--line); }
+  .title { flex: 1; min-width: 0; font-family: "Noto Serif TC", serif; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .tools { display: flex; gap: 6px; }
+
+  .stage { flex: 1; position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  #book { position: relative; flex: none; }
+  #book .stf__wrapper { width: 100%; height: 100%; padding: 0 !important; }
+  .page { background: #fff; overflow: hidden; }
+  .page-inner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #fff; }
+  .page canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
+  #book.spread .page.l .page-inner::after, #book.spread .page.r .page-inner::after { content: ""; position: absolute; top: 0; bottom: 0; width: 8%; pointer-events: none; }
+  #book.spread .page.l .page-inner::after { right: 0; background: linear-gradient(to left, rgba(0,0,0,.16), rgba(0,0,0,.04) 30%, transparent); }
+  #book.spread .page.r .page-inner::after { left: 0; background: linear-gradient(to right, rgba(0,0,0,.16), rgba(0,0,0,.04) 30%, transparent); }
+  .page .spin { position: absolute; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #ddd; border-top-color: #888; animation: spin .8s linear infinite; }
+  .page.ready .spin { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; border-radius: 10px; z-index: 5; background: transparent; border-color: transparent; color: var(--muted); }
+  .nav:hover { color: var(--ink); background: var(--btn); }
+  .nav:disabled { opacity: .2; cursor: default; background: transparent; }
+  .nav svg { width: 26px; height: 26px; }
+  #prev { left: 12px; } #next { right: 12px; }
+
+  .bottombar { flex: none; display: flex; align-items: center; gap: 14px; padding: 10px 20px; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+  #slider { flex: 1; accent-color: var(--accent); height: 20px; }
+  #label { min-width: 88px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
+
+  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 20; background: var(--bg); color: var(--muted); font-size: 14px; text-align: center; padding: 24px; line-height: 1.7; }
+  .bar { width: 220px; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .overlay a { color: var(--accent); }
+
+  #zoom { position: fixed; inset: 0; z-index: 50; background: rgba(14,13,12,.97); display: none; touch-action: none; }
+  #zoom.open { display: block; }
+  #zoom-view { position: absolute; inset: 0 0 76px 0; overflow: hidden; cursor: grab; }
+  #zoom-view.drag { cursor: grabbing; }
+  #zoom-content { position: absolute; left: 0; top: 0; transform-origin: 0 0; display: flex; box-shadow: 0 20px 60px rgba(0,0,0,.5); background: #fff; will-change: transform; }
+  #zoom-content canvas { display: block; }
+  .zoom-tools { position: absolute; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 6px; align-items: center;
+    background: rgba(30,29,27,.9); border: 1px solid var(--line); border-radius: 12px; padding: 6px; backdrop-filter: blur(8px); }
+  #zoom-level { min-width: 52px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+  .toast { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%) translateY(10px); background: #f2eee7; color: #1c1b19; padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: .25s; pointer-events: none; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+
+  @media (max-width: 640px) {
+    .topbar { padding: 8px 10px; gap: 8px; }
+    .title { font-size: 14px; text-align: left; }
+    .hide-sm { display: none !important; }
+    .btn-text { display: none; }
+    .nav { display: none; }
+    .bottombar { padding: 8px 14px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="btn" href="./" aria-label="回到書架" title="回到書架">
+    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg><span class="btn-text">書架</span>
+  </a>
+  <div class="title" id="title"></div>
+  <div class="tools">
+    <button id="btn-sound" aria-pressed="true" title="翻頁音效" aria-label="翻頁音效">
+      <svg class="on" viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg>
+      <svg class="off" viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>
+    </button>
+    <button id="btn-zoom" title="放大檢視 (Z)" aria-label="放大檢視">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>
+    </button>
+    <button id="btn-share" class="hide-sm" title="複製連結" aria-label="複製連結">
+      <svg viewBox="0 0 24 24"><path d="M10 14a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 10a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>
+    </button>
+    <a id="btn-download" class="btn hide-sm" title="下載 PDF" aria-label="下載 PDF" download>
+      <svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+    </a>
+    <button id="btn-fs" title="全螢幕 (F)" aria-label="全螢幕">
+      <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <button class="nav" id="prev" aria-label="上一頁"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <div id="book"></div>
+  <button class="nav" id="next" aria-label="下一頁"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+  <div class="overlay" id="loading">
+    <div id="loading-text">載入中…</div>
+    <div class="bar"><i id="loading-bar"></i></div>
+  </div>
+</div>
+
+<div class="bottombar">
+  <input type="range" id="slider" min="1" max="1" value="1" aria-label="頁碼">
+  <div id="label">– / –</div>
+</div>
+
+<div id="zoom" role="dialog" aria-label="放大檢視">
+  <div id="zoom-view"><div id="zoom-content"></div></div>
+  <div class="zoom-tools">
+    <button id="z-out" aria-label="縮小"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+    <div id="zoom-level">100%</div>
+    <button id="z-in" aria-label="放大"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button>
+    <button id="z-fit">符合視窗</button>
+    <button id="z-close" aria-label="關閉放大檢視"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="lib/pdfjs/pdf.min.js"></script>
+<script src="lib/page-flip.browser.js"></script>
+<script src="lib/catalog.js"></script>
+<script>
+(async function () {
+  const $ = id => document.getElementById(id);
+  const stage = $('stage'), bookEl = $('book'), slider = $('slider'), label = $('label');
+  const DPR = () => Math.min(window.devicePixelRatio || 1, 3);
+  const MIN_PAGE_W = 280;
+
+  function fail(msg) {
+    $('loading').innerHTML = `<div>${msg}</div><a href="./">回到書架</a>`;
+  }
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  // ---------- 參數與書目 ----------
+  const params = new URLSearchParams(location.search);
+  const file = Catalog.safeName(params.get('book'));
+  if (!file) return fail('找不到這本書。');
+  const { books } = await Catalog.loadCatalog().catch(() => ({ books: [] }));
+  const meta = books.find(b => b.file === file) || { file, title: Catalog.prettyTitle(file) };
+  const pdfUrl = Catalog.PDF_DIR + file.split('/').map(encodeURIComponent).join('/');
+  $('title').textContent = meta.title;
+  document.title = meta.title;
+  const dl = $('btn-download');
+  if (meta.download === false) dl.remove(); else dl.href = pdfUrl;
+
+  // ---------- 翻頁音效（Web Audio 合成，不需音檔） ----------
+  let audioCtx = null, soundOn = true;
+  try { soundOn = localStorage.getItem('flip-sound') !== 'off'; } catch (e) {}
+  $('btn-sound').setAttribute('aria-pressed', String(soundOn));
+  $('btn-sound').onclick = () => {
+    soundOn = !soundOn;
+    $('btn-sound').setAttribute('aria-pressed', String(soundOn));
+    try { localStorage.setItem('flip-sound', soundOn ? 'on' : 'off'); } catch (e) {}
+    if (soundOn) playFlip();
+  };
+  function playFlip() {
+    if (!soundOn) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const sr = audioCtx.sampleRate, dur = 0.42, n = Math.floor(sr * dur);
+      const buf = audioCtx.createBuffer(1, n, sr), d = buf.getChannelData(0);
+      let grain = 0;
+      for (let i = 0; i < n; i++) {
+        const t = i / n;
+        if (i % 180 === 0) grain = 0.35 + Math.random() * 0.65;              // 紙張的顆粒感
+        const env = Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.15)), 1.6) * (1 - t * 0.6);
+        d[i] = (Math.random() * 2 - 1) * env * grain;
+      }
+      const src = audioCtx.createBufferSource(); src.buffer = buf;
+      src.playbackRate.value = 0.9 + Math.random() * 0.2;
+      const bp = audioCtx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.7;
+      const now = audioCtx.currentTime;
+      bp.frequency.setValueAtTime(3800, now);
+      bp.frequency.exponentialRampToValueAtTime(1100, now + dur);
+      const hp = audioCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 450;
+      const g = audioCtx.createGain(); g.gain.value = 0.55;
+      src.connect(bp).connect(hp).connect(g).connect(audioCtx.destination);
+      src.start();
+    } catch (e) { /* 瀏覽器不支援就靜音 */ }
+  }
+
+  // ---------- 載入 PDF ----------
+  let pdf;
+  try {
+    const task = pdfjsLib.getDocument({ url: pdfUrl, ...PDF_OPTS });
+    task.onProgress = p => { if (p.total) $('loading-bar').style.width = Math.min(100, p.loaded / p.total * 100) + '%'; };
+    pdf = await task.promise;
+  } catch (e) {
+    console.error(e);
+    return fail(e && e.name === 'MissingPDFException' ? `找不到檔案「${file}」。` : '這個 PDF 無法開啟。');
+  }
+  const N = pdf.numPages;
+  const first = await pdf.getPage(1);
+  const baseVp = first.getViewport({ scale: 1 });
+  const RATIO = baseVp.width / baseVp.height;
+  slider.max = N;
+
+  // ---------- 版面尺寸 ----------
+  let pageW = 0;
+  function layout() {
+    const narrow = window.innerWidth <= 640;
+    const padX = narrow ? 12 : 72, padY = narrow ? 12 : 28;
+    const availW = stage.clientWidth - padX * 2, availH = stage.clientHeight - padY * 2;
+    let pw = Math.min(availW / 2, availH * RATIO), spread = true;
+    if (pw < MIN_PAGE_W || N === 1) { pw = Math.min(availW, availH * RATIO); spread = false; }
+    pageW = Math.floor(pw);
+    bookEl.style.width = (spread ? pageW * 2 : pageW) + 'px';
+    bookEl.style.height = Math.floor(pageW / RATIO) + 'px';
+  }
+  window.addEventListener('resize', layout);   // 必須在 PageFlip 之前註冊
+  layout();
+
+  // ---------- 建立頁面 ----------
+  const pages = [];
+  for (let i = 0; i < N; i++) {
+    const el = document.createElement('div');
+    el.className = 'page';
+    if (i === 0 || i === N - 1) el.dataset.density = 'hard';
+    if (i > 0) el.classList.add(i % 2 ? 'l' : 'r');   // 跨頁中線陰影
+    el.innerHTML = '<div class="page-inner"><div class="spin"></div></div>';
+    bookEl.appendChild(el);
+    pages.push({ el, inner: el.firstChild, canvas: null, w: 0 });
+  }
+
+  const startPage = Math.max(0, Math.min(N - 1, (parseInt(params.get('page'), 10) || 1) - 1));
+  const flip = new St.PageFlip(bookEl, {
+    width: Math.round(600 * RATIO), height: 600, size: 'stretch', autoSize: false,
+    minWidth: MIN_PAGE_W, maxWidth: 4000, minHeight: 100, maxHeight: 4000,
+    showCover: true, usePortrait: true, mobileScrollSupport: false,
+    drawShadow: true, maxShadowOpacity: 0.45, flippingTime: 700, startPage
+  });
+  flip.loadFromHTML(pages.map(p => p.el));
+
+  // ---------- 逐頁繪製（只繪製目前附近的頁面） ----------
+  let queue = [], busy = false;
+  function wanted() {
+    const cur = flip.getCurrentPageIndex();
+    const list = [];
+    for (let d = 0; d <= 4; d++) { list.push(cur + d); if (d) list.push(cur - d); }
+    return list.filter(i => i >= 0 && i < N);
+  }
+  function targetW() { return Math.min(2400, Math.ceil(pageW * DPR() * 1.25)); }
+  function schedule() {
+    const tw = targetW(), want = wanted(), keep = new Set(want);
+    const cur = flip.getCurrentPageIndex();
+    pages.forEach((p, i) => {            // 釋放距離很遠的頁面，節省記憶體
+      if (p.canvas && Math.abs(i - cur) > 12) { p.canvas.width = p.canvas.height = 0; p.canvas.remove(); p.canvas = null; p.w = 0; p.el.classList.remove('ready'); }
+    });
+    queue = want.filter(i => pages[i].w < tw * 0.9);
+    queue._keep = keep;
+    pump();
+  }
+  async function pump() {
+    if (busy) return;
+    busy = true;
+    while (queue.length) {
+      const i = queue.shift();
+      const p = pages[i], tw = targetW();
+      if (p.w >= tw * 0.9) continue;
+      try {
+        const page = await pdf.getPage(i + 1);
+        const v1 = page.getViewport({ scale: 1 });
+        const vp = page.getViewport({ scale: tw / v1.width });
+        const c = document.createElement('canvas');
+        c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+        await page.render({ canvasContext: c.getContext('2d', { alpha: false }), viewport: vp }).promise;
+        if (p.canvas) { p.canvas.width = p.canvas.height = 0; p.canvas.remove(); }
+        p.inner.appendChild(c); p.canvas = c; p.w = tw; p.el.classList.add('ready');
+      } catch (e) { console.error('第', i + 1, '頁繪製失敗', e); }
+    }
+    busy = false;
+  }
+
+  // ---------- 介面狀態 ----------
+  function visiblePages() {
+    const cur = flip.getCurrentPageIndex();
+    if (flip.getOrientation() === 'portrait' || cur === 0) return [cur];
+    const left = cur % 2 === 1 ? cur : cur - 1;          // showCover：跨頁為 (1,2)(3,4)…
+    return [left, left + 1].filter(i => i >= 0 && i < N);
+  }
+  function updateUI() {
+    bookEl.classList.toggle('spread', flip.getOrientation() === 'landscape');
+    const vis = visiblePages();
+    const a = vis[0] + 1, b = vis[vis.length - 1] + 1;
+    label.textContent = (a === b ? a : `${a}–${b}`) + ` / ${N}`;
+    slider.value = a;
+    $('prev').disabled = vis[0] <= 0;
+    $('next').disabled = vis[vis.length - 1] >= N - 1;
+    const u = new URL(location.href);
+    if (a > 1) u.searchParams.set('page', a); else u.searchParams.delete('page');
+    history.replaceState(null, '', u);
+  }
+
+  flip.on('flip', () => { updateUI(); schedule(); });
+  flip.on('changeState', e => { if (e.data === 'flipping') playFlip(); });
+  flip.on('changeOrientation', () => { updateUI(); schedule(); });
+  window.addEventListener('resize', () => setTimeout(() => { updateUI(); schedule(); }, 60));
+
+  $('prev').onclick = () => flip.flipPrev();
+  $('next').onclick = () => flip.flipNext();
+  slider.oninput = () => { label.textContent = `${slider.value} / ${N}`; };
+  slider.onchange = () => { flip.turnToPage(+slider.value - 1); playFlip(); updateUI(); schedule(); };
+
+  updateUI(); schedule();
+  $('loading').remove();
+
+  // ---------- 分享與全螢幕 ----------
+  $('btn-share').onclick = async () => {
+    try { await navigator.clipboard.writeText(location.href); toast('已複製連結'); }
+    catch (e) { prompt('複製這個連結：', location.href); }
+  };
+  const fsEl = document.documentElement;
+  const canFs = fsEl.requestFullscreen || fsEl.webkitRequestFullscreen;
+  function toggleFs() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else (fsEl.requestFullscreen || fsEl.webkitRequestFullscreen).call(fsEl);
+  }
+  if (canFs) $('btn-fs').onclick = toggleFs; else $('btn-fs').remove();
+
+  // ---------- 放大檢視 ----------
+  const zoom = $('zoom'), zview = $('zoom-view'), zcontent = $('zoom-content');
+  let zs = 1, ztx = 0, zty = 0, zBaseW = 0, zBaseH = 0, zPages = [], zRendered = 0, zTimer = null;
+  const Z_MIN = 1, Z_MAX = 6;
+
+  async function renderZoom(pxPerPage) {
+    const canv = [];
+    for (const i of zPages) {
+      const page = await pdf.getPage(i + 1);
+      const v1 = page.getViewport({ scale: 1 });
+      const vp = page.getViewport({ scale: pxPerPage / v1.width });
+      const c = document.createElement('canvas');
+      c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+      c.style.width = (zBaseW / zPages.length) + 'px'; c.style.height = zBaseH + 'px';
+      await page.render({ canvasContext: c.getContext('2d', { alpha: false }), viewport: vp }).promise;
+      canv.push(c);
+    }
+    if (!zoom.classList.contains('open')) return;
+    zcontent.querySelectorAll('canvas').forEach(c => { c.width = c.height = 0; });
+    zcontent.replaceChildren(...canv);
+    zRendered = pxPerPage;
+  }
+  function applyZoom() {
+    const vw = zview.clientWidth, vh = zview.clientHeight;
+    const cw = zBaseW * zs, ch = zBaseH * zs;
+    ztx = cw <= vw ? (vw - cw) / 2 : Math.min(0, Math.max(vw - cw, ztx));
+    zty = ch <= vh ? (vh - ch) / 2 : Math.min(0, Math.max(vh - ch, zty));
+    zcontent.style.transform = `translate(${ztx}px, ${zty}px) scale(${zs})`;
+    $('zoom-level').textContent = Math.round(zs * 100) + '%';
+    clearTimeout(zTimer);
+    zTimer = setTimeout(() => {                      // 放得更大時，重新繪製更高解析度
+      const need = Math.min(5000, Math.ceil(zBaseW / zPages.length * zs * DPR()));
+      if (need > zRendered * 1.15) renderZoom(need);
+    }, 250);
+  }
+  function zoomAt(ns, cx, cy) {
+    ns = Math.max(Z_MIN, Math.min(Z_MAX, ns));
+    ztx = cx - (cx - ztx) * (ns / zs);
+    zty = cy - (cy - zty) * (ns / zs);
+    zs = ns; applyZoom();
+  }
+  function openZoom() {
+    zPages = visiblePages();
+    const vw = window.innerWidth, vh = window.innerHeight, pad = 24;
+    const r = RATIO * zPages.length;
+    zBaseW = Math.min(vw - pad * 2, (vh - 76 - pad * 2) * r);
+    zBaseH = zBaseW / r;
+    zcontent.style.width = zBaseW + 'px'; zcontent.style.height = zBaseH + 'px';
+    zcontent.replaceChildren();
+    zoom.classList.add('open');
+    zs = 1; ztx = zty = 0; zRendered = 0;
+    const initial = zPages.length > 1 ? 1 : Math.min(1.6, (vw - pad * 2) / zBaseW);
+    zs = Math.max(1, initial);
+    applyZoom();
+    renderZoom(Math.min(5000, Math.ceil(zBaseW / zPages.length * Math.max(2, zs) * DPR())));
+  }
+  function closeZoom() {
+    zoom.classList.remove('open');
+    zcontent.querySelectorAll('canvas').forEach(c => { c.width = c.height = 0; });
+    zcontent.replaceChildren();
+  }
+  $('btn-zoom').onclick = openZoom;
+  $('z-close').onclick = closeZoom;
+  $('z-in').onclick = () => zoomAt(zs * 1.4, zview.clientWidth / 2, zview.clientHeight / 2);
+  $('z-out').onclick = () => zoomAt(zs / 1.4, zview.clientWidth / 2, zview.clientHeight / 2);
+  $('z-fit').onclick = () => { zs = 1; applyZoom(); };
+  zview.addEventListener('wheel', e => {
+    e.preventDefault();
+    const k = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0022));
+    zoomAt(zs * k, e.clientX, e.clientY);
+  }, { passive: false });
+  zview.addEventListener('dblclick', e => zoomAt(zs > 1.5 ? 1 : 2.5, e.clientX, e.clientY));
+
+  // 拖曳平移＋雙指縮放
+  const pts = new Map();
+  let pinch0 = null;
+  zview.addEventListener('pointerdown', e => { zview.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); zview.classList.add('drag'); if (pts.size === 2) pinch0 = pinchInfo(); });
+  zview.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return;
+    const prev = pts.get(e.pointerId);
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2 && pinch0) {
+      const now = pinchInfo();
+      ztx += now.cx - pinch0.cx; zty += now.cy - pinch0.cy;
+      zoomAt(zs * now.d / pinch0.d, now.cx, now.cy);
+      pinch0 = now;
+    } else if (pts.size === 1) {
+      ztx += e.clientX - prev.x; zty += e.clientY - prev.y; applyZoom();
+    }
+  });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = null; if (!pts.size) zview.classList.remove('drag'); };
+  zview.addEventListener('pointerup', up); zview.addEventListener('pointercancel', up);
+  function pinchInfo() {
+    const [a, b] = [...pts.values()];
+    return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+  }
+
+  // ---------- 鍵盤 ----------
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' && e.key !== 'Escape') return;
+    const zOpen = zoom.classList.contains('open');
+    if (e.key === 'Escape' && zOpen) return closeZoom();
+    if (zOpen) {
+      if (e.key === '+' || e.key === '=') $('z-in').click();
+      if (e.key === '-') $('z-out').click();
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { closeZoom(); e.key === 'ArrowLeft' ? flip.flipPrev() : flip.flipNext(); }
+      return;
+    }
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); flip.flipNext(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); flip.flipPrev(); }
+    else if (e.key === 'Home') { flip.turnToPage(0); updateUI(); schedule(); }
+    else if (e.key === 'End') { flip.turnToPage(N - 1); updateUI(); schedule(); }
+    else if (e.key === 'z' || e.key === 'Z') openZoom();
+    else if ((e.key === 'f' || e.key === 'F') && canFs) toggleFs();
+  });
+})();
+</script>
+</body>
+</html>
