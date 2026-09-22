@@ -158,6 +158,8 @@
   const { books } = await Catalog.loadCatalog().catch(() => ({ books: [] }));
   const meta = books.find(b => b.file === file) || { file, title: Catalog.prettyTitle(file) };
   const pdfUrl = Catalog.PDF_DIR + file.split('/').map(encodeURIComponent).join('/');
+  const forceMode = meta.layout === 'single' ? 'single' : meta.layout === 'double' ? 'double' : null;
+  const PHONE_LANDSCAPE_MQ = window.matchMedia('(orientation: landscape) and (max-height: 560px)');
   $('title').textContent = meta.title;
   document.title = meta.title;
   const dl = $('btn-download');
@@ -217,15 +219,34 @@
   slider.max = N;
 
   // ---------- 版面尺寸 ----------
+  // currentMode: 'single'（強制單頁）、'double'（強制雙頁）、'adaptive'（依可用寬度自動判斷，預設行為）
+  function resolveMode() {
+    if (N === 1) return 'single';
+    if (forceMode) return forceMode;
+    return PHONE_LANDSCAPE_MQ.matches ? 'double' : 'adaptive';   // 手機橫向：即使空間較窄也優先雙頁
+  }
+  let currentMode = resolveMode();
   let pageW = 0;
   function layout() {
     const narrow = window.innerWidth <= 640;
-    const padX = narrow ? 12 : 72, padY = narrow ? 12 : 28;
+    const shortLandscape = PHONE_LANDSCAPE_MQ.matches;
+    const padX = narrow ? 12 : (shortLandscape ? 24 : 72);
+    const padY = narrow ? 12 : (shortLandscape ? 8 : 28);
     const availW = stage.clientWidth - padX * 2, availH = stage.clientHeight - padY * 2;
-    let pw = Math.min(availW / 2, availH * RATIO), spread = true;
-    if (pw < MIN_PAGE_W || N === 1) { pw = Math.min(availW, availH * RATIO); spread = false; }
+    let pw, spreadShape;
+    if (currentMode === 'single') {
+      spreadShape = false;
+      pw = Math.min(availW, availH * RATIO);
+    } else if (currentMode === 'double') {
+      spreadShape = true;
+      pw = Math.min(availW / 2, availH * RATIO);
+    } else {
+      pw = Math.min(availW / 2, availH * RATIO);
+      spreadShape = pw >= MIN_PAGE_W;
+      if (!spreadShape) pw = Math.min(availW, availH * RATIO);
+    }
     pageW = Math.floor(pw);
-    bookEl.style.width = (spread ? pageW * 2 : pageW) + 'px';
+    bookEl.style.width = (spreadShape ? pageW * 2 : pageW) + 'px';
     bookEl.style.height = Math.floor(pageW / RATIO) + 'px';
   }
   window.addEventListener('resize', layout);   // 必須在 PageFlip 之前註冊
@@ -251,6 +272,24 @@
     drawShadow: true, maxShadowOpacity: 0.45, flippingTime: 700, startPage
   });
   flip.loadFromHTML(pages.map(p => p.el));
+
+  // ---------- 單頁／雙頁模式（可被 books.json 的 layout 欄位或手機橫向強制覆寫） ----------
+  function applyMode(mode) {
+    const s = flip.getSettings();
+    if (mode === 'double') { s.usePortrait = false; s.minWidth = 90; s.maxWidth = 4000; }
+    else if (mode === 'single') { s.usePortrait = true; s.minWidth = 100000; s.maxWidth = 100000; }
+    else { s.usePortrait = true; s.minWidth = MIN_PAGE_W; s.maxWidth = 4000; }
+    currentMode = mode;
+    flip.getRender().update();
+  }
+  applyMode(currentMode);
+  if (!forceMode && N > 1) {
+    PHONE_LANDSCAPE_MQ.addEventListener('change', () => {
+      const m = resolveMode();
+      if (m !== currentMode) applyMode(m);
+      layout(); updateUI(); schedule();
+    });
+  }
 
   // ---------- 逐頁繪製（只繪製目前附近的頁面） ----------
   let queue = [], busy = false;
