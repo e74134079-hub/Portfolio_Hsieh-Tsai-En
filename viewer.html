@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>閱讀器</title>
+<title>reader</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@200;400;500;600;800&display=swap" rel="stylesheet">
@@ -84,53 +84,53 @@
 </head>
 <body>
 <div class="topbar">
-  <a class="btn" href="./" aria-label="回到書架" title="回到書架">
+  <a class="btn" href="./" aria-label="Back to Library" title="Back to Library">
     <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg><span class="btn-text">書架</span>
   </a>
   <div class="title" id="title"></div>
   <div class="tools">
-    <button id="btn-sound" aria-pressed="true" title="翻頁音效" aria-label="翻頁音效">
+    <button id="btn-sound" aria-pressed="true" title="flipping sound" aria-label="flipping sound">
       <svg class="on" viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg>
       <svg class="off" viewBox="0 0 24 24"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>
     </button>
-    <button id="btn-zoom" title="放大檢視 (Z)" aria-label="放大檢視">
+    <button id="btn-zoom" title="magnifier (Z)" aria-label="magnifier">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>
     </button>
-    <button id="btn-share" class="hide-sm" title="複製連結" aria-label="複製連結">
+    <button id="btn-share" class="hide-sm" title="copy link" aria-label="copy link">
       <svg viewBox="0 0 24 24"><path d="M10 14a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 10a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>
     </button>
-    <a id="btn-download" class="btn hide-sm" title="下載 PDF" aria-label="下載 PDF" download>
+    <a id="btn-download" class="btn hide-sm" title="download PDF" aria-label="download PDF" download>
       <svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
     </a>
-    <button id="btn-fs" title="全螢幕 (F)" aria-label="全螢幕">
+    <button id="btn-fs" title="full screen (F)" aria-label="full screen">
       <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
     </button>
   </div>
 </div>
 
 <div class="stage" id="stage">
-  <button class="nav" id="prev" aria-label="上一頁"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <button class="nav" id="prev" aria-label="previous page"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
   <div id="book"></div>
-  <button class="nav" id="next" aria-label="下一頁"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+  <button class="nav" id="next" aria-label="next page"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
   <div class="overlay" id="loading">
-    <div id="loading-text">載入中…</div>
+    <div id="loading-text">Loading…</div>
     <div class="bar"><i id="loading-bar"></i></div>
   </div>
 </div>
 
 <div class="bottombar">
-  <input type="range" id="slider" min="1" max="1" value="1" aria-label="頁碼">
+  <input type="range" id="slider" min="1" max="1" value="1" aria-label="page number">
   <div id="label">– / –</div>
 </div>
 
-<div id="zoom" role="dialog" aria-label="放大檢視">
+<div id="zoom" role="dialog" aria-label="magnifier">
   <div id="zoom-view"><div id="zoom-content"></div></div>
   <div class="zoom-tools">
-    <button id="z-out" aria-label="縮小"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+    <button id="z-out" aria-label="zoom out"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
     <div id="zoom-level">100%</div>
-    <button id="z-in" aria-label="放大"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button>
-    <button id="z-fit">符合視窗</button>
-    <button id="z-close" aria-label="關閉放大檢視"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <button id="z-in" aria-label="zoom in"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button>
+    <button id="z-fit">fit to window</button>
+    <button id="z-close" aria-label="close magnifier"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -146,7 +146,7 @@
   const MIN_PAGE_W = 280;
 
   function fail(msg) {
-    $('loading').innerHTML = `<div>${msg}</div><a href="./">回到書架</a>`;
+    $('loading').innerHTML = `<div>${msg}</div><a href="./">back to shelf</a>`;
   }
   function toast(msg) {
     const t = $('toast'); t.textContent = msg; t.classList.add('show');
@@ -156,7 +156,7 @@
   // ---------- 參數與書目 ----------
   const params = new URLSearchParams(location.search);
   const file = Catalog.safeName(params.get('book'));
-  if (!file) return fail('找不到這本書。');
+  if (!file) return fail('No book specified');
   const { books } = await Catalog.loadCatalog().catch(() => ({ books: [] }));
   const meta = books.find(b => b.file === file) || { file, title: Catalog.prettyTitle(file) };
   const pdfUrl = Catalog.PDF_DIR + file.split('/').map(encodeURIComponent).join('/');
